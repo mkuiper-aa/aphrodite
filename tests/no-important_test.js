@@ -4,19 +4,26 @@ import jsdom from 'jsdom';
 
 import {
   StyleSheet,
-  css
-} from '../src/no-important.js';
-import { reset } from '../src/inject.js';
+  css,
+  getStylesGlobal,
+} from '../src/index.js';
 
 describe('css', () => {
+    
+    let document;
+    
     beforeEach(() => {
-        global.document = jsdom.jsdom();
-        reset();
+        document = jsdom.jsdom();
+        getStylesGlobal().setUseImportant(false);
+        getStylesGlobal().getInjector().setDocument(document);
+        getStylesGlobal().clearBufferAndResumeStyleInjection();
     });
 
     afterEach(() => {
-        global.document.close();
-        global.document = undefined;
+        document.close();
+        getStylesGlobal().setUseImportant(true);
+        getStylesGlobal().getInjector().setDocument(undefined);
+        document = undefined;
     });
 
     it('adds styles to the DOM', done => {
@@ -29,7 +36,7 @@ describe('css', () => {
         css(sheet.red);
 
         asap(() => {
-            const styleTags = global.document.getElementsByTagName("style");
+            const styleTags = document.getElementsByTagName("style");
             const lastTag = styleTags[styleTags.length - 1];
 
             assert.include(lastTag.textContent, `${sheet.red._name}{`);
