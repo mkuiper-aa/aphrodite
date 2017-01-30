@@ -1477,6 +1477,14 @@ module.exports =
 	            return (_stylesGlobal = stylesGlobal).css.apply(_stylesGlobal, arguments);
 	        },
 
+	        /**
+	         * FIXME: this is exposed only to facilitate tests. Meh!
+	         * 
+	         * Would be better no to have a global at all, but that would require a more
+	         * drastic rewrite of the library and dropping backwards compatibility.
+	         * 
+	         * @returns {Styles}
+	         */
 	        getStylesGlobal: function getStylesGlobal() {
 	            return stylesGlobal;
 	        },
@@ -1513,6 +1521,8 @@ module.exports =
 	import type { MaybeSheetDefinition } from './exports.js';
 	import type { SelectorHandler } from './generate.js';
 	*/
+
+	// TODO: moved everything into Injector, but might be wise to keep the classname cache global
 
 	var Injector = function Injector() {
 	    var document /* : ?Document */ = arguments.length <= 0 || arguments[0] === undefined ? undefined : arguments[0];
