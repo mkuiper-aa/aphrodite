@@ -1,10 +1,7 @@
 /* @flow */
 import {mapObj, hashObject} from './util';
-import {
-    injectAndGetClassName,
-    reset, startBuffering, flushToString,
-    addRenderedClassNames, getRenderedClassNames,
-} from './inject';
+import {defaultSelectorHandlers} from './generate';
+import {Injector} from './inject';
 
 /* ::
 import type { SelectorHandler } from './generate.js';
@@ -16,6 +13,71 @@ type Extension = {
 };
 export type MaybeSheetDefinition = SheetDefinition | false | null | void
 */
+
+let stylesGlobal /* : Styles */;
+
+const getStylesGlobal = () => {
+    
+    if (!stylesGlobal) {
+        throw 'No global Styles instance has been initialized.';
+    }
+    
+    return stylesGlobal;
+};
+
+const Styles = (document /* : ?Document */ = null,
+                useImportant /* : boolean */ = true,
+                selectorHandlers /* : ?SelectorHandler[] */) => {
+    
+    let important = useImportant;
+    
+    const handlers = selectorHandlers ? selectorHandlers : defaultSelectorHandlers;
+    
+    const injector = new Injector(document);
+    
+    return {
+        css(...styleDefinitions /* : MaybeSheetDefinition[] */) {
+            return injector.injectAndGetClassName(
+                important, styleDefinitions, handlers);
+        },
+        
+        renderStatic(renderFunc /* : RenderFunction */) {
+            injector.reset();
+            injector.startBuffering();
+            const html = renderFunc();
+            const cssContent = injector.flushToString();
+            
+            return {
+                html: html,
+                css: {
+                    content: cssContent,
+                    renderedClassNames: injector.getRenderedClassNames(),
+                },
+            };
+        },
+        
+        rehydrate(renderedClassNames /* : string[] */ =[]) {
+            injector.addRenderedClassNames(renderedClassNames);
+        },
+        
+        suppressStyleInjection() {
+            injector.reset();
+            injector.startBuffering();
+        },
+        
+        clearBufferAndResumeStyleInjection() {
+            injector.reset();
+        },
+        
+        setUseImportant(useImportant /* : boolean */) {
+            important = useImportant;
+        },
+        
+        getInjector() {
+            return injector;
+        },
+    }
+};
 
 const StyleSheet = {
     create(sheetDefinition /* : SheetDefinition */) {
@@ -30,7 +92,7 @@ const StyleSheet = {
     },
 
     rehydrate(renderedClassNames /* : string[] */ =[]) {
-        addRenderedClassNames(renderedClassNames);
+        getStylesGlobal().rehydrate(renderedClassNames);
     },
 };
 
@@ -39,18 +101,7 @@ const StyleSheet = {
  */
 const StyleSheetServer = {
     renderStatic(renderFunc /* : RenderFunction */) {
-        reset();
-        startBuffering();
-        const html = renderFunc();
-        const cssContent = flushToString();
-
-        return {
-            html: html,
-            css: {
-                content: cssContent,
-                renderedClassNames: getRenderedClassNames(),
-            },
-        };
+        return getStylesGlobal().renderStatic(renderFunc);
     },
 };
 
@@ -72,15 +123,14 @@ const StyleSheetTestUtils = {
      * clearBufferAndResumeStyleInjection.
      */
     suppressStyleInjection() {
-        reset();
-        startBuffering();
+        getStylesGlobal().suppressStyleInjection();
     },
 
     /**
      * Opposite method of preventStyleInject.
      */
     clearBufferAndResumeStyleInjection() {
-        reset();
+        getStylesGlobal().clearBufferAndResumeStyleInjection();
     },
 };
 
@@ -92,7 +142,12 @@ const makeExports = (
     useImportant /* : boolean */,
     selectorHandlers /* : SelectorHandler[] */
 ) => {
+    
+    stylesGlobal = new Styles(global.document, useImportant, selectorHandlers);
+    
     return {
+        Styles,
+        
         StyleSheet: {
             ...StyleSheet,
 
@@ -131,9 +186,22 @@ const makeExports = (
         StyleSheetTestUtils,
 
         css(...styleDefinitions /* : MaybeSheetDefinition[] */) {
-            return injectAndGetClassName(
-                useImportant, styleDefinitions, selectorHandlers);
+            return stylesGlobal.css(...styleDefinitions);
         },
+
+        /**
+         * FIXME: this is exposed only to facilitate tests. Meh!
+         * 
+         * Would be better no to have a global at all, but that would require a more
+         * drastic rewrite of the library and dropping backwards compatibility.
+         * 
+         * @returns {Styles}
+         */
+        getStylesGlobal() {
+            return stylesGlobal;
+        },
+        
+        useImportant,
     };
 };
 

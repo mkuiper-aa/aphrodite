@@ -6,19 +6,24 @@ import {
   StyleSheet,
   StyleSheetServer,
   StyleSheetTestUtils,
-  css
+  css,
+  getStylesGlobal,
 } from '../src/index.js';
-import { reset } from '../src/inject.js';
 
 describe('css', () => {
+    
+    let document;
+    
     beforeEach(() => {
-        global.document = jsdom.jsdom();
-        reset();
+        document = jsdom.jsdom();
+        getStylesGlobal().getInjector().setDocument(document);
+        getStylesGlobal().clearBufferAndResumeStyleInjection();
     });
 
     afterEach(() => {
-        global.document.close();
-        global.document = undefined;
+        document.close();
+        getStylesGlobal().getInjector().setDocument(undefined);
+        document = undefined;
     });
 
     it('generates class names', () => {
@@ -78,7 +83,7 @@ describe('css', () => {
         css(sheet.red);
 
         asap(() => {
-            const styleTags = global.document.getElementsByTagName("style");
+            const styleTags = document.getElementsByTagName("style");
             const lastTag = styleTags[styleTags.length - 1];
 
             assert.include(lastTag.textContent, `${sheet.red._name}{`);
@@ -100,13 +105,13 @@ describe('css', () => {
         css(sheet.red);
 
         asap(() => {
-            const styleTags = global.document.getElementsByTagName("style");
+            const styleTags = document.getElementsByTagName("style");
             assert.equal(styleTags.length, 1);
 
             css(sheet.blue);
 
             asap(() => {
-                const styleTags = global.document.getElementsByTagName("style");
+                const styleTags = document.getElementsByTagName("style");
                 assert.equal(styleTags.length, 1);
                 done();
             });
@@ -130,7 +135,7 @@ describe('css', () => {
         css(sheet.red);
 
         asap(() => {
-            const styleTags = global.document.getElementsByTagName("style");
+            const styleTags = document.getElementsByTagName("style");
             assert.equal(styleTags.length, 1);
             const styles = styleTags[0].textContent;
 
@@ -232,14 +237,19 @@ describe('StyleSheet.create', () => {
 });
 
 describe('rehydrate', () => {
+    
+    let document;
+    
     beforeEach(() => {
-        global.document = jsdom.jsdom();
-        reset();
+        document = jsdom.jsdom();
+        getStylesGlobal().getInjector().setDocument(document);
+        getStylesGlobal().clearBufferAndResumeStyleInjection();
     });
 
     afterEach(() => {
-        global.document.close();
-        global.document = undefined;
+        document.close();
+        getStylesGlobal().getInjector().setDocument(undefined);
+        document = undefined;
     });
 
     const sheet = StyleSheet.create({
@@ -264,7 +274,7 @@ describe('rehydrate', () => {
         css(sheet.green);
 
         asap(() => {
-            const styleTags = global.document.getElementsByTagName("style");
+            const styleTags = document.getElementsByTagName("style");
             assert.equal(styleTags.length, 1);
             const styles = styleTags[0].textContent;
 
@@ -287,7 +297,7 @@ describe('rehydrate', () => {
 describe('StyleSheet.extend', () => {
     beforeEach(() => {
         global.document = jsdom.jsdom();
-        reset();
+        getStylesGlobal().clearBufferAndResumeStyleInjection();
     });
 
     afterEach(() => {
